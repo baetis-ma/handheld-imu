@@ -1,0 +1,137 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<style>
+    body {background-color: orange;}
+    h1  { text-align:center; color:red; }
+    #myMag { position:absolute;top:15%;left:25%;height:40%; width:70%; }
+    #myMag1 { position:absolute;top:57%;left:25%;height:40%; width:70%; }
+    input { font-size:xx-small;}
+
+</style>
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+
+<body>
+    <h1> Attitude Measurements</h1>
+    <p id="xdisp"> = / </p> 
+    <p id="ydisp"> = / </p> 
+    <p id="theta"> = / </p> 
+    <p id="phi"> = / </p> 
+    <form> <input type="button" id="cal" value="cal">calibration </form>
+    <div id="myMag" > </div>
+    <div id="myMag1" > </div>
+
+    <script>
+      setInterval(function(){ getData();}  ,333);
+      document.getElementById('cal').onclick = function() { cal = 1; }
+      function getData() {
+         var tempstr = "cal="+ cal;
+         cal = 0;
+         var xhr = new XMLHttpRequest();
+         xhr.open("GET", "getData?"+tempstr, true);
+         xhr.setRequestHeader("Content-Type", "application/bin");
+         xhr.send(tempstr);
+         xhr.onreadystatechange = function() {
+            if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+               var DataRet = this.responseText;
+               var DataRetArray = DataRet.split(",");
+               //console.log("DataRet "+DataRetArray);
+               // populate raw data arrays irdata and rdata
+               tdata[traceptr] = parseFloat(DataRetArray[0]);
+               xdisp[traceptr] = parseFloat(DataRetArray[1]);
+               ydisp[traceptr] = parseFloat(DataRetArray[2]);
+               theta[traceptr] = parseFloat(DataRetArray[3]);
+               phi[traceptr] = parseFloat(DataRetArray[4]);
+               //console.log("RET "+tdata[traceptr]+" ",xdisp[traceptr]+" ",ydisp[traceptr]+" "+
+               //                                       theta[traceptr]," ",phi[traceptr]);
+               traceptr++;
+               document.getElementById("xdisp").innerHTML = "xDisp = "+ xdisp[traceptr-1].toFixed(2);
+               document.getElementById("ydisp").innerHTML = "yDisp = "+ ydisp[traceptr-1].toFixed(2);
+               document.getElementById("theta").innerHTML = "theta = "+ theta[traceptr-1].toFixed(2);
+               document.getElementById("phi").innerHTML = "phi = "+ phi[traceptr-1].toFixed(2);
+
+               //keep the plotting data sample at samples length
+               var maxsamples = 400;
+               if (tdata.length > maxsamples) {
+                   tdata.splice( 0, tdata.length-maxsamples);
+                   xdisp.splice( 0, xdisp.length-maxsamples);
+                   ydisp.splice( 0, ydisp.length-maxsamples);
+                   theta.splice( 0, theta.length-maxsamples);
+                   phi.splice( 0, phi.length-maxsamples);
+                   traceptr = maxsamples ;
+               }
+               //put the plotting data into plotly trace arrays
+               for(x=0; x<tdata.length; x++){
+                   trace1.x[x] = String(0.3 * tdata[x]);
+                   trace2.x[x] = String(0.3 * tdata[x]);
+                   trace3.x[x] = String(0.3 * tdata[x]);
+                   trace4.x[x] = String(0.3 * tdata[x]);
+                   trace1.y[x] = String(xdisp[x]);
+                   trace2.y[x] = String(ydisp[x]);
+                   trace3.y[x] = String(theta[x]);
+                   trace4.y[x] = String(phi[x]);
+               }
+               //interface to html exery plot update
+               Plotly.newPlot('myMag', data, layout,{responsive: true});
+               Plotly.newPlot('myMag1', data1, layout1,{responsive: true});
+            }
+         }
+      }
+      var cal = 0;
+      var xdisp = [0]; var ydisp =  [0]; 
+      var theta = [0]; var phi =  [0]; 
+      var tdata = [0]; var traceptr = 0;
+      var DataRet;
+      var trace1 = { x: [0], y: [0], mode: "lines+markers", 
+                 line: {color:'rgb(255,0,0)', size: 1 },
+                 marker: {color:'rgb(255,0,0)', size: 3 } };
+      var trace2 = { x: [0], y: [0], mode: "lines+markers", 
+                 line: {color:'rgb(0,255,0)', size: 1 },
+                 marker: {color:'rgb(0,255,0)', size: 3 } };
+      var trace3 = { x: [0], y: [0], mode: "lines+markers", 
+                 line: {color:'rgb(0,0,255)', size: 1 },
+                 marker: {color:'rgb(0,0,255)', size: 3 } };
+      var trace4 = { x: [0], y: [0], mode: "lines+markers", 
+                 line: {color:'rgb(255,0,0)', size: 1 },
+                 marker: {color:'rgb(255,0,0)', size: 3 } };
+
+      layout= {
+            title: { text:'xy displacements', font: { size: 24, color: '#ffffff' } },
+            showlegend : false,
+            autosize : true,
+            margin:{ l:30, r:20, b:40, t:40, pad:4},
+            plot_bgcolor:"#aaaf",
+            paper_bgcolor:"#a00f",
+            xaxis: { title: { text: 'Time (sec)', font: { size: 18, color: '#ffffff' } },
+                     tickfont: { size:16, color:'white'} },
+            yaxis: {
+                    //autorange: false, 
+                    //range: [ -1.1 , 1.1], 
+                    zeroline: true }
+      }
+      layout1= {
+            title: { text:'Pitch and Roll', font: { size: 24, color: '#ffffff' } },
+            showlegend : false,
+            autosize : true,
+            margin:{ l:30, r:20, b:40, t:40, pad:4},
+            plot_bgcolor:"#aaaf",
+            paper_bgcolor:"#a00f",
+            xaxis: { title: { text: 'Time (sec)', font: { size: 18, color: '#ffffff' } },
+                     tickfont: { size:16, color:'white'} },
+            yaxis: {autorange: false, 
+                    range: [ -100 , 100], 
+                    zeroline: true }
+      }
+
+      var data = [trace1, trace2];
+      var data1 = [ trace3, trace4];
+
+    </script>
+</body>
+</html>
+
+
+
+
