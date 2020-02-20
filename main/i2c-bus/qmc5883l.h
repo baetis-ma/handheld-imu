@@ -6,9 +6,10 @@ void qmc5883_init() {
 }
 
 int qmc5883_read () {
-    int xmax = 9952; int xmin = -1437;
-    int ymax = 3737; int ymin = -7930;
-    int zmax = 3622; int zmin = -8395;
+    int xmax = 312; int xmin = -10077;
+    int ymax = -840; int ymin = -10102;
+    int zmax = 15515; int zmin = 3817;
+
     float caloff = -2.3;   
     uint8_t regdata[8];
     i2c_read(QMC5883L_I2C_ADDR, 0x00, regdata, 6); 

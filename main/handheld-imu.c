@@ -58,6 +58,7 @@ int digT1, digT2, digT3;
 int digP1, digP2, digP3, digP4, digP5, digP6, digP7, digP8, digP9;
 #include "./i2c-bus/bmp280.h"
 #include "./i2c-bus/qmc5883l.h"
+#include "./i2c-bus/ssd1306.h"
 
 //requirements for vspi attached to mpu9250
 #define VSPI_MISO_PIN  17       //ad0
@@ -89,6 +90,7 @@ void app_main() {
     i2cdetect();
     bmp280_cal();       //air pressure altitude measurements
     qmc5883_init();     //magnetometer heading measurements
+    ssd1305_init();
 
     //start tasks
     xTaskCreatePinnedToCore (imu_read, "imu_read", 8096, NULL, 5, NULL, 1);
@@ -99,6 +101,7 @@ void app_main() {
     char *temp;
     imu.cal_cnt = 0;
     float height_cal=1010.1;
+    char disp_str[128];
     while(1){
        //read rx_data and parse commands
        temp = strstr(rx_buffer, "cal=");
@@ -111,13 +114,15 @@ void app_main() {
        strcat ( outstr, "EOF\0");
 
        if(cnt == 10) height_cal = bmp280_read();
-
-    qmc5883_init();     //magnetometer heading measurements
+       qmc5883_init();     //magnetometer heading measurements
        printf("%7.3f  heading=%4ddeg  height=%7.2fft  roll=%7.2f   pitch=%7.2f\n", 
             (float)imu.nsamp/1000, qmc5883_read(), 28.4*(height_cal-bmp280_read()), imu.pitch, imu.roll);
+       sprintf(disp_str,"4HandheldIMU||1    Heading    Height|4 %4d %5.1f||1    Pitch      Roll|4%5.1f %5.1f", 
+              qmc5883_read(), 28.4*(height_cal-bmp280_read()),imu.pitch,imu.roll);
+       ssd1305_text(disp_str);
 
        cnt++;
-       vTaskDelay(1000/portTICK_RATE_MS);  
+       vTaskDelay(500/portTICK_RATE_MS);  
     }
 
     removeDevice(vspi);
