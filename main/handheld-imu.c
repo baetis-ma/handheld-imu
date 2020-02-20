@@ -56,7 +56,8 @@ char rx_buffer[1024];
 #define BMP280_I2C_ADDR       0x76
 int digT1, digT2, digT3;
 int digP1, digP2, digP3, digP4, digP5, digP6, digP7, digP8, digP9;
-#include "./i2c-bus//bmp280.h"
+#include "./i2c-bus/bmp280.h"
+#include "./i2c-bus/qmc5883l.h"
 
 //requirements for vspi attached to mpu9250
 #define VSPI_MISO_PIN  17       //ad0
@@ -67,15 +68,6 @@ int digP1, digP2, digP3, digP4, digP5, digP6, digP7, digP8, digP9;
 #include "./include/vspi.h"
 
 //requirements for imu
-//imu globals
-float xAccl, yAccl, zAccl, xGyro, yGyro, zGyro;
-float xAccl_LP, yAccl_LP, zAccl_LP;
-float xAccl_Int, yAccl_Int, zAccl_Int;
-float zGyro_Int=0;
-float xFusion, yFusion, zGyro_Int_HP;
-float gmag, theta, phi;
-int   seq, throttle=1000, yaw, pitch, roll, state;
-int   cal_cnt = 0, astate = 0, calib = 0, nsamp = 0;
 #include "./include/imu.h"
 
 float height = 3.72; 
@@ -94,9 +86,9 @@ void app_main() {
     imu_init (vspi); 
     vTaskDelay(50/portTICK_RATE_MS);  
 
-    //i2cdetect();
-    //bmp280_cal();       //air pressure altitude measurements
-    //qmc5883_init();     //magnetometer heading measurements
+    i2cdetect();
+    bmp280_cal();       //air pressure altitude measurements
+    qmc5883_init();     //magnetometer heading measurements
 
     //start tasks
     xTaskCreatePinnedToCore (imu_read, "imu_read", 8096, NULL, 5, NULL, 1);
@@ -105,21 +97,24 @@ void app_main() {
 
     char tmp[128];
     char *temp;
+    imu.cal_cnt = 0;
+    float height_cal=1010.1;
     while(1){
        //read rx_data and parse commands
-       //printf("rx_buffer==>%s\n", rx_buffer);
        temp = strstr(rx_buffer, "cal=");
-       //printf("rxbuffer - %s\n", rx_buffer);
-       //if(temp)sscanf(temp,"cal=%d", &cal_cnt);
+       if(temp)sscanf(temp,"cal=%d", &imu.cal_cnt);
 
        //construct outstr - outstr is gloabal that will be forwarded by tcp_server_task
        snprintf( outstr, sizeof tmp,"%d,", cnt);
-       snprintf( tmp, sizeof tmp,"%4.2f,%4.2f,%4.2f,%4.2f",xAccl_Int, yAccl_Int, 57.3*theta, -57.3*phi);
+       snprintf( tmp, sizeof tmp,"%4.2f,%4.2f,%4.2f,%4.2f",0.00,0.00,imu.pitch,imu.roll);
        strcat (outstr, tmp);  
        strcat ( outstr, "EOF\0");
 
-       //printf("dispxyz %7.3f %7.3f   roll=%7.2f   pitch=%7.2f\n", 
-       //            xAccl_Int, yAccl_Int, 57.3*theta, -57.3*phi);
+       if(cnt == 10) height_cal = bmp280_read();
+
+    qmc5883_init();     //magnetometer heading measurements
+       printf("%7.3f  heading=%4ddeg  height=%7.2fft  roll=%7.2f   pitch=%7.2f\n", 
+            (float)imu.nsamp/1000, qmc5883_read(), 28.4*(height_cal-bmp280_read()), imu.pitch, imu.roll);
 
        cnt++;
        vTaskDelay(1000/portTICK_RATE_MS);  
